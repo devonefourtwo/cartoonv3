@@ -380,6 +380,51 @@ export function FilmPlayer({film,onClose}:Props){
           ctx2d.fillText(dlgLine.text.slice(0,90),32,H-18)
         }
 
+        // ── alphabet letter card on canvas ──────────────────────
+        const alphaMatch=sc.title.match(/^([A-Z]) is for (.+)$/)
+        if(alphaMatch){
+          const COLORS=['#6366F1','#EC4899','#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6','#14B8A6']
+          const col=COLORS[(alphaMatch[1].charCodeAt(0)-65)%COLORS.length]
+          const cardW=320,cardH=360,cardX=40,cardY=H/2-cardH/2
+          // card background
+          ctx2d.fillStyle='rgba(255,255,255,0.95)'
+          ctx2d.beginPath()
+          if(ctx2d.roundRect)ctx2d.roundRect(cardX,cardY,cardW,cardH,20)
+          else ctx2d.rect(cardX,cardY,cardW,cardH)
+          ctx2d.fill()
+          // top colour strip
+          ctx2d.fillStyle=col
+          ctx2d.fillRect(cardX,cardY,cardW,12)
+          ctx2d.beginPath()
+          if(ctx2d.roundRect)ctx2d.roundRect(cardX,cardY,cardW,12,{upperLeft:20,upperRight:20,lowerLeft:0,lowerRight:0} as any)
+          else ctx2d.rect(cardX,cardY,cardW,12)
+          ctx2d.fill()
+          // big letter
+          ctx2d.fillStyle=col
+          ctx2d.font=`bold 160px Georgia,serif`
+          ctx2d.textAlign='center'
+          ctx2d.fillText(alphaMatch[1],cardX+cardW/2,cardY+12+155)
+          // lowercase
+          ctx2d.fillStyle=col+'99'
+          ctx2d.font=`bold 90px Georgia,serif`
+          ctx2d.fillText(alphaMatch[1].toLowerCase(),cardX+cardW/2,cardY+12+155+80)
+          // word
+          ctx2d.fillStyle='#1F2937'
+          ctx2d.font=`bold 32px sans-serif`
+          ctx2d.fillText(alphaMatch[2],cardX+cardW/2,cardY+cardH-55)
+          ctx2d.fillStyle='rgba(0,0,0,0.35)'
+          ctx2d.font='20px sans-serif'
+          ctx2d.fillText(`${alphaMatch[1]} is for ${alphaMatch[2]}`,cardX+cardW/2,cardY+cardH-22)
+          // bottom strip
+          ctx2d.fillStyle=col
+          ctx2d.fillRect(cardX,cardY+cardH-10,cardW,10)
+          // card shadow
+          ctx2d.fillStyle='rgba(0,0,0,0.2)'
+          ctx2d.beginPath()
+          ctx2d.ellipse(cardX+cardW/2,cardY+cardH+18,cardW*0.4,14,0,0,Math.PI*2)
+          ctx2d.fill()
+        }
+
         // ── scene number watermark ───────────────────────────────
         ctx2d.fillStyle='rgba(255,255,255,0.18)'
         ctx2d.font='15px sans-serif'; ctx2d.textAlign='left'
@@ -478,6 +523,55 @@ export function FilmPlayer({film,onClose}:Props){
             )
           })}
         </div>
+
+        {/* ── Alphabet letter card ─────────────────────────────── */}
+        {(()=>{
+          const m=sc.title.match(/^([A-Z]) is for (.+)$/)
+          if(!m)return null
+          const COLORS=['#6366F1','#EC4899','#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6','#14B8A6']
+          const color=COLORS[(m[1].charCodeAt(0)-65)%COLORS.length]
+          return(
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 pointer-events-none animate-letter-card">
+              {/* Card */}
+              <div className="rounded-3xl shadow-2xl overflow-hidden"
+                style={{background:'rgba(255,255,255,0.96)',backdropFilter:'blur(12px)'}}>
+                {/* Coloured top strip */}
+                <div style={{background:color,height:10,width:'100%'}}/>
+                <div className="px-8 py-6 text-center">
+                  {/* Big letter */}
+                  <div className="font-black leading-none select-none"
+                    style={{fontSize:'clamp(80px,12vw,140px)',color,
+                      textShadow:`0 4px 16px ${color}55`,
+                      fontFamily:'Georgia,serif'}}>
+                    {m[1]}
+                  </div>
+                  {/* Lowercase */}
+                  <div className="font-bold leading-none mt-1 select-none"
+                    style={{fontSize:'clamp(48px,7vw,80px)',color:`${color}99`,
+                      fontFamily:'Georgia,serif'}}>
+                    {m[1].toLowerCase()}
+                  </div>
+                  {/* Divider */}
+                  <div className="my-3 rounded-full" style={{height:3,background:color,opacity:0.2}}/>
+                  {/* Word */}
+                  <div className="font-bold text-gray-800 select-none"
+                    style={{fontSize:'clamp(18px,2.5vw,28px)'}}>
+                    {m[2]}
+                  </div>
+                  {/* is for */}
+                  <div className="text-gray-400 select-none mt-0.5"
+                    style={{fontSize:'clamp(12px,1.5vw,16px)'}}>
+                    {m[1]} is for {m[2]}
+                  </div>
+                </div>
+                <div style={{background:color,height:6,width:'100%'}}/>
+              </div>
+              {/* Shadow */}
+              <div className="mx-auto mt-2 rounded-full"
+                style={{width:'80%',height:12,background:'rgba(0,0,0,0.3)',filter:'blur(8px)'}}/>
+            </div>
+          )
+        })()}
 
         {/* Cinematic vignette */}
         <div className="absolute inset-0 pointer-events-none"

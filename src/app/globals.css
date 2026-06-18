@@ -87,3 +87,13 @@
   0%  { transform:scale(1.00) translate(0%,0%) }
   100%{ transform:scale(1.12) translate(-1%,-0.5%) }
 }
+
+/* ── Alphabet letter card entrance ───────────────────────── */
+@keyframes letterCard {
+  0%  { transform:translateY(-50%) translateX(-40px) scale(0.85); opacity:0 }
+  60% { transform:translateY(-50%) translateX(4px)  scale(1.04); opacity:1 }
+  100%{ transform:translateY(-50%) translateX(0)    scale(1);    opacity:1 }
+}
+.animate-letter-card {
+  animation: letterCard 0.5s cubic-bezier(.22,.68,0,1.2) forwards;
+}
