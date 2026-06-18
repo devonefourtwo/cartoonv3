@@ -51,7 +51,7 @@ export interface GeneratedFilm {
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme detection
 // ─────────────────────────────────────────────────────────────────────────────
-type Theme = 'fantasy'|'space'|'ocean'|'friendship'|'mystery'
+type Theme = 'fantasy'|'space'|'ocean'|'friendship'|'mystery'|'alphabet'
 
 const THEME_KEYWORDS: Record<Theme, string[]> = {
   fantasy:    ['dragon','magic','castle','wizard','spell','quest','knight','fairy','kingdom','sword','potion','wand','elf','dwarf','goblin','enchant'],
@@ -59,6 +59,7 @@ const THEME_KEYWORDS: Record<Theme, string[]> = {
   ocean:      ['ocean','sea','fish','underwater','mermaid','whale','coral','treasure','pirate','island','beach','dolphin','submarine','deep'],
   mystery:    ['mystery','secret','hidden','ghost','clue','detective','puzzle','dark','shadow','strange','unknown','investigate','haunted'],
   friendship: ['friend','together','lonely','help','trust','team','partner','bond','share','kindness','courage','believe'],
+  alphabet:   ['alphabet','abc','letter','letters','learn','a to z','a-z','spelling','reading','kids','children','nursery','phonics'],
 }
 
 function detectTheme(prompt: string): Theme {
@@ -97,6 +98,7 @@ const THEME_CHARS: Record<Theme, [CharTpl,CharTpl]> = {
   ocean:      ['heroine','animal'],
   friendship: ['hero','heroine'],
   mystery:    ['heroine','animal'],
+  alphabet:   ['heroine','animal'],
 }
 
 const CHAR_COLORS: Record<CharTpl, [string,string]> = {
@@ -257,12 +259,52 @@ const FRIENDSHIP_TEMPLATE: SceneTpl[] = SPACE_TEMPLATE.map((s,i) => ({
   bg: (['bedroom','forest','city','forest','city','forest','beach','forest','city','forest','castle','forest','city','beach','forest','city','beach','forest','city','beach','forest','city','beach','forest','city','forest','city','beach','forest','bedroom'] as BgTheme[])[i] ?? s.bg,
 }))
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alphabet template — 30 scenes, one per letter A-Z + intro/outro
+// ─────────────────────────────────────────────────────────────────────────────
+const ALPHABET_TEMPLATE: SceneTpl[] = [
+  // Intro
+  { title:'Welcome to the Alphabet!',  desc:'Time to learn!',         bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'Hello everyone! Today we learn the alphabet!',emotion:'happy'},{who:'S',text:'From A all the way to Z!',emotion:'happy'}], dur:9000, anim:'bounce-in', music:'wonder' },
+  { title:'A is for Apple',            desc:'A shiny red apple.',      bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'A! A! A is for Apple!',emotion:'happy'},{who:'S',text:'Crunch! Apples are so yummy!',emotion:'happy'}], dur:9000, anim:'bounce-in', music:'wonder' },
+  { title:'B is for Bear',             desc:'A big fluffy bear.',      bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'B! B! B is for Bear!',emotion:'happy'},{who:'S',text:'Bears love honey and sleeping!',emotion:'happy'}], dur:9000, anim:'slide-left', music:'wonder' },
+  { title:'C is for Castle',           desc:'A magnificent castle.',   bg:'castle',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'C! C! C is for Castle!',emotion:'surprised'},{who:'S',text:'Kings and queens live in castles!',emotion:'happy'}], dur:9000, anim:'zoom-in', music:'wonder' },
+  { title:'D is for Dragon',           desc:'A friendly dragon.',      bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'D! D! D is for Dragon!',emotion:'happy'},{who:'S',text:'Dragons can fly and breathe fire!',emotion:'surprised'}], dur:9000, anim:'bounce-in', music:'adventure' },
+  { title:'E is for Elephant',         desc:'A gentle giant.',         bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'E! E! E is for Elephant!',emotion:'happy'},{who:'S',text:'Elephants never forget anything!',emotion:'happy'}], dur:9000, anim:'slide-right', music:'wonder' },
+  { title:'F is for Fish',             desc:'Colourful fish swim by.', bg:'beach',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'F! F! F is for Fish!',emotion:'happy'},{who:'S',text:'Fish live in the ocean and rivers!',emotion:'happy'}], dur:9000, anim:'fade-in', music:'peaceful' },
+  { title:'G is for Galaxy',           desc:'Stars everywhere!',       bg:'space',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'G! G! G is for Galaxy!',emotion:'surprised'},{who:'S',text:'Our galaxy is called the Milky Way!',emotion:'surprised'}], dur:9000, anim:'zoom-in', music:'wonder' },
+  { title:'H is for House',            desc:'A cosy home.',            bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'H! H! H is for House!',emotion:'happy'},{who:'S',text:'Home is where family is!',emotion:'happy'}], dur:9000, anim:'bounce-in', music:'peaceful' },
+  { title:'I is for Island',           desc:'A sunny island.',         bg:'beach',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'I! I! I is for Island!',emotion:'happy'},{who:'S',text:'Islands are land surrounded by water!',emotion:'happy'}], dur:9000, anim:'slide-left', music:'peaceful' },
+  { title:'J is for Jungle',           desc:'Dense tropical jungle.',  bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'J! J! J is for Jungle!',emotion:'happy'},{who:'S',text:'Jungles are full of amazing animals!',emotion:'surprised'}], dur:9000, anim:'slide-right', music:'adventure' },
+  { title:'K is for King',             desc:'A royal king.',           bg:'castle',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'K! K! K is for King!',emotion:'happy'},{who:'S',text:'Kings wear crowns and rule kingdoms!',emotion:'happy'}], dur:9000, anim:'bounce-in', music:'triumphant' },
+  { title:'L is for Lion',             desc:'A roaring lion!',         bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'L! L! L is for Lion!',emotion:'surprised'},{who:'S',text:'Lions are called the king of animals!',emotion:'happy'}], dur:9000, anim:'zoom-in', music:'adventure' },
+  { title:'M is for Moon',             desc:'The glowing moon.',       bg:'space',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'M! M! M is for Moon!',emotion:'happy'},{who:'S',text:'Astronauts have walked on the moon!',emotion:'surprised'}], dur:9000, anim:'fade-in', music:'wonder' },
+  { title:'N is for Night',            desc:'Stars fill the night.',   bg:'space',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'N! N! N is for Night!',emotion:'happy'},{who:'S',text:'At night we can see all the stars!',emotion:'happy'}], dur:9000, anim:'slide-left', music:'peaceful' },
+  { title:'O is for Ocean',            desc:'The deep blue ocean.',    bg:'beach',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'O! O! O is for Ocean!',emotion:'happy'},{who:'S',text:'The ocean covers most of our planet!',emotion:'surprised'}], dur:9000, anim:'bounce-in', music:'peaceful' },
+  { title:'P is for Planet',           desc:'Planets orbit the sun.',  bg:'space',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'P! P! P is for Planet!',emotion:'surprised'},{who:'S',text:'There are eight planets in our solar system!',emotion:'happy'}], dur:9000, anim:'zoom-in', music:'wonder' },
+  { title:'Q is for Queen',            desc:'A magnificent queen.',    bg:'castle',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'Q! Q! Q is for Queen!',emotion:'happy'},{who:'S',text:'Queens are brave and very wise!',emotion:'happy'}], dur:9000, anim:'bounce-in', music:'triumphant' },
+  { title:'R is for Rainbow',          desc:'Colours in the sky!',     bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'R! R! R is for Rainbow!',emotion:'surprised'},{who:'S',text:'Rainbows have red, orange, yellow, green, blue, and purple!',emotion:'happy'}], dur:9000, anim:'fade-in', music:'wonder' },
+  { title:'S is for Star',             desc:'Twinkling stars.',        bg:'space',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'S! S! S is for Star!',emotion:'happy'},{who:'S',text:'Our sun is actually a star too!',emotion:'surprised'}], dur:9000, anim:'zoom-in', music:'wonder' },
+  { title:'T is for Tree',             desc:'A tall old tree.',        bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'T! T! T is for Tree!',emotion:'happy'},{who:'S',text:'Trees give us oxygen to breathe!',emotion:'happy'}], dur:9000, anim:'slide-right', music:'peaceful' },
+  { title:'U is for Umbrella',         desc:'Staying dry!',            bg:'city',    hPos:'left',  sPos:'right', dlg:[{who:'H',text:'U! U! U is for Umbrella!',emotion:'happy'},{who:'S',text:'Umbrellas keep us dry in the rain!',emotion:'happy'}], dur:9000, anim:'bounce-in', music:'peaceful' },
+  { title:'V is for Volcano',          desc:'A magnificent volcano!',  bg:'beach',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'V! V! V is for Volcano!',emotion:'surprised'},{who:'S',text:'Volcanoes shoot hot lava from inside the earth!',emotion:'surprised'}], dur:9000, anim:'zoom-in', music:'adventure' },
+  { title:'W is for Wizard',           desc:'A magical wizard.',       bg:'castle',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'W! W! W is for Wizard!',emotion:'happy'},{who:'S',text:'Wizards cast spells and make magic!',emotion:'surprised'}], dur:9000, anim:'bounce-in', music:'wonder' },
+  { title:'X is for Xylophone',        desc:'Making music!',           bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'X! X! X is for Xylophone!',emotion:'happy'},{who:'S',text:'A xylophone makes beautiful music when you hit it!',emotion:'happy'}], dur:9000, anim:'fade-in', music:'wonder' },
+  { title:'Y is for Yellow',           desc:'The bright yellow sun.',  bg:'beach',   hPos:'left',  sPos:'right', dlg:[{who:'H',text:'Y! Y! Y is for Yellow!',emotion:'happy'},{who:'S',text:'The sun, bananas, and sunflowers are all yellow!',emotion:'happy'}], dur:9000, anim:'slide-left', music:'peaceful' },
+  { title:'Z is for Zebra',            desc:'Black and white stripes.',bg:'forest',  hPos:'left',  sPos:'right', dlg:[{who:'H',text:'Z! Z! Z is for Zebra!',emotion:'happy'},{who:'S',text:'Every zebra has a unique pattern of stripes!',emotion:'surprised'}], dur:9000, anim:'bounce-in', music:'wonder' },
+  // Outro
+  { title:'We Did It!',                desc:'All 26 letters learned!', bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'We learned all 26 letters of the alphabet!',emotion:'happy'},{who:'S',text:'From A to Z, you know them all now!',emotion:'happy'}], dur:10000, anim:'zoom-in', music:'triumphant' },
+  { title:'Sing the ABC Song',         desc:'Everyone sings together.',bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'A B C D E F G... H I J K L M N O P!',emotion:'happy'},{who:'S',text:'Q R S... T U V... W X Y and Z!',emotion:'happy'}], dur:11000, anim:'bounce-in', music:'triumphant' },
+  { title:'The End!',                  desc:'Great job learning!',     bg:'bedroom', hPos:'left',  sPos:'right', dlg:[{who:'H',text:'Amazing work! You know your ABCs!',emotion:'happy'},{who:'S',text:'Keep reading and keep learning!',emotion:'happy'}], dur:10000, anim:'fade-in', music:'triumphant' },
+]
+
 const TEMPLATES: Record<Theme, SceneTpl[]> = {
   fantasy:    FANTASY_TEMPLATE,
   space:      SPACE_TEMPLATE,
   ocean:      OCEAN_TEMPLATE,
   mystery:    MYSTERY_TEMPLATE,
   friendship: FRIENDSHIP_TEMPLATE,
+  alphabet:   ALPHABET_TEMPLATE,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,6 +316,7 @@ const TITLE_PREFIXES: Record<Theme, string[]> = {
   ocean:      ['Beneath the Waves:','The Ocean Tale of','Deep Sea Adventure:','The Sea Story of'],
   mystery:    ['The Mystery of','The Secret of','Unravelling','The Hidden Truth of'],
   friendship: ['Together:','The Friendship of','Side by Side:','An Adventure with'],
+  alphabet:   ['ABC Adventure with','Learning A to Z with','The Alphabet Journey of','A to Z with'],
 }
 
 function buildTitle(theme: Theme, heroName: string, sidekickName: string): string {
