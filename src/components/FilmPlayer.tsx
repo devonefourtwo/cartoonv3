@@ -55,6 +55,29 @@ class MusicEngine {
     } catch{}
     this.timer=setTimeout(()=>this.tick(),TEMPO[this.mood]*1000)
   }
+  // Synthesise "talking" tones for a dialogue line (captured in recording)
+  speakTones(text:string, pitch:number){
+    if(!this.ctx||!this.gain)return
+    const syllables=Math.max(2,Math.ceil(text.length/3.5))
+    const maxSyl=Math.min(syllables,24)
+    for(let i=0;i<maxSyl;i++){
+      const t=this.ctx.currentTime+i*0.11
+      // vary freq slightly to sound natural
+      const freq=pitch*190+(i%4)*25-(i%3)*15
+      try{
+        const osc=this.ctx.createOscillator()
+        const v=this.ctx.createGain()
+        osc.type='sine'
+        osc.frequency.value=Math.max(80,freq)
+        v.gain.setValueAtTime(0,t)
+        v.gain.linearRampToValueAtTime(0.22,t+0.025)
+        v.gain.linearRampToValueAtTime(0.14,t+0.065)
+        v.gain.linearRampToValueAtTime(0,t+0.105)
+        osc.connect(v); v.connect(this.gain!)
+        osc.start(t); osc.stop(t+0.115)
+      }catch{}
+    }
+  }
   stop(){
     this.active=false
     if(this.timer)clearTimeout(this.timer)
@@ -220,6 +243,9 @@ export function FilmPlayer({film,onClose}:Props){
     canvas.width=W; canvas.height=H
     const ctx2d=canvas.getContext('2d')!
 
+    // Start music FIRST so AudioContext + MediaStreamDestination exist
+    music.current.start(scenes[0].musicMood)
+
     // combine canvas stream + music audio
     const videoStream=canvas.captureStream(30)
     const musicStr=music.current.stream()
@@ -237,8 +263,6 @@ export function FilmPlayer({film,onClose}:Props){
       setBlob(blob); setRec(false)
     }
 
-    // start music for recording
-    music.current.start(scenes[0].musicMood)
     mr.start()
 
     // Helper: serialise any SVG element → HTMLImageElement at W×H
@@ -330,8 +354,15 @@ export function FilmPlayer({film,onClose}:Props){
           }
         }
 
-        // ── subtitle bar ─────────────────────────────────────────
-        const dlgLine=sc.dialogue[Math.min(Math.floor(f/(frames/Math.max(sc.dialogue.length,1))),sc.dialogue.length-1)]
+        // ── subtitle / voice tones ───────────────────────────────
+        const dlgIdx2=Math.min(Math.floor(f/(frames/Math.max(sc.dialogue.length,1))),sc.dialogue.length-1)
+        const dlgLine=sc.dialogue[dlgIdx2]
+        // Trigger voice tones once at the start of each dialogue line
+        const isFirstFrameOfLine = f===Math.floor(dlgIdx2*(frames/Math.max(sc.dialogue.length,1)))
+        if(dlgLine&&isFirstFrameOfLine){
+          const ch=charMap[dlgLine.characterId]
+          music.current.speakTones(dlgLine.text,ch?.voicePitch??1)
+        }
         if(dlgLine){
           const ch=charMap[dlgLine.characterId]
           // gradient bar
