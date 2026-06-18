@@ -241,11 +241,23 @@ export function FilmPlayer({film,onClose}:Props){
     music.current.start(scenes[0].musicMood)
     mr.start()
 
-    // Background colours per theme
-    const BG: Record<string,string> = {
-      bedroom:'#C4A882',forest:'#2D6A4F',city:'#4A5568',
-      space:'#0A0520',beach:'#87CEEB',castle:'#4A3060',
+    // Helper: serialise any SVG element → HTMLImageElement at W×H
+    async function svgElToImg(svgEl:SVGSVGElement,w:number,h:number):Promise<HTMLImageElement|null>{
+      try{
+        const clone=svgEl.cloneNode(true) as SVGSVGElement
+        clone.setAttribute('width',String(w)); clone.setAttribute('height',String(h))
+        const xml=new XMLSerializer().serializeToString(clone)
+        const blob=new Blob([xml],{type:'image/svg+xml;charset=utf-8'})
+        const url=URL.createObjectURL(blob)
+        return await new Promise((res,rej)=>{
+          const img=new Image()
+          img.onload=()=>{URL.revokeObjectURL(url);res(img)}
+          img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('svg load'))}
+          img.src=url
+        })
+      }catch{return null}
     }
+
     const XPCT: Record<string,number> = {
       'far-left':8,'left':23,'center':50,'right':77,'far-right':92
     }
@@ -261,98 +273,86 @@ export function FilmPlayer({film,onClose}:Props){
       const FPS=24
       const frames=Math.round((sc.duration/1000)*FPS)
 
-      for(let f=0;f<frames;f++){
-        // ── background ──────────────────────────────────────────
-        const grad=ctx2d.createLinearGradient(0,0,0,H)
-        grad.addColorStop(0,(BG[sc.background]??'#111')+'cc')
-        grad.addColorStop(1,BG[sc.background]??'#111')
-        ctx2d.fillStyle=grad
-        ctx2d.fillRect(0,0,W,H)
+      // Pre-render: grab background and character SVGs from the live DOM once per scene
+      const sceneContainer=document.querySelector<HTMLElement>('[data-recording-scene]')
+      let bgImg:HTMLImageElement|null=null
+      const charImgs:Map<string,HTMLImageElement>=new Map()
 
-        // scene title watermark top-left
-        ctx2d.fillStyle='rgba(255,255,255,0.25)'
-        ctx2d.font=`18px sans-serif`
-        ctx2d.textAlign='left'
-        ctx2d.fillText(`${sc.sceneNumber}. ${sc.title}`,24,36)
+      if(sceneContainer){
+        const bgSvg=sceneContainer.querySelector<SVGSVGElement>('svg[aria-label*="background"]')
+        if(bgSvg)bgImg=await svgElToImg(bgSvg,W,H)
 
-        // ── characters (simple cartoon silhouettes) ─────────────
         for(const pl of sc.placements){
-          const ch=charMap[pl.characterId]; if(!ch)continue
+          const charSvg=sceneContainer.querySelector<SVGSVGElement>(`svg[aria-label*="${charMap[pl.characterId]?.template}"]`)
+          if(charSvg){
+            const charH=Math.round((HPCT[pl.size]??56)/100*H)
+            const charW=Math.round(charH*100/178)
+            const img=await svgElToImg(charSvg,charW,charH)
+            if(img)charImgs.set(pl.characterId,img)
+          }
+        }
+      }
+
+      for(let f=0;f<frames;f++){
+        ctx2d.clearRect(0,0,W,H)
+
+        // ── background: real SVG or solid fallback ──────────────
+        if(bgImg){
+          ctx2d.drawImage(bgImg,0,0,W,H)
+        } else {
+          const BG: Record<string,string>={bedroom:'#C4A882',forest:'#2D6A4F',city:'#4A5568',space:'#0A0520',beach:'#87CEEB',castle:'#4A3060'}
+          ctx2d.fillStyle=BG[sc.background]??'#1a1040'
+          ctx2d.fillRect(0,0,W,H)
+        }
+
+        // ── characters: real SVG images ─────────────────────────
+        for(const pl of sc.placements){
+          const img=charImgs.get(pl.characterId)
+          if(!img)continue
           const cx=(XPCT[pl.position]??50)/100*W
-          const charH=(HPCT[pl.size]??56)/100*H
-          const scale=charH/178  // 178 = SVG viewBox height
-          const charW=100*scale
-          const baseY=H
-
+          const charH=img.height
+          const charW=img.width
+          const x=cx-charW/2
+          const y=H-charH
           // shadow
-          ctx2d.fillStyle='rgba(0,0,0,0.18)'
-          ctx2d.beginPath()
-          ctx2d.ellipse(cx,baseY-4,charW*0.45,8,0,0,Math.PI*2)
-          ctx2d.fill()
-
-          // body
-          ctx2d.fillStyle=ch.primaryColor
-          const bw=charW*0.44,bh=charH*0.44
-          ctx2d.beginPath()
-          ctx2d.roundRect(cx-bw/2,baseY-bh-charH*0.18,bw,bh,8)
-          ctx2d.fill()
-
-          // head
-          ctx2d.fillStyle='#FDDCB0'
-          const hr=charH*0.18
-          ctx2d.beginPath()
-          ctx2d.arc(cx,baseY-bh-charH*0.18-hr*0.7,hr,0,Math.PI*2)
-          ctx2d.fill()
-
-          // hair/hat using secondary colour
-          ctx2d.fillStyle=ch.secondaryColor
-          ctx2d.beginPath()
-          ctx2d.arc(cx,baseY-bh-charH*0.18-hr*0.9,hr*0.85,Math.PI,Math.PI*2)
-          ctx2d.fill()
-
-          // eyes
-          ctx2d.fillStyle='#fff'
-          ctx2d.beginPath(); ctx2d.arc(cx-hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.22,0,Math.PI*2); ctx2d.fill()
-          ctx2d.beginPath(); ctx2d.arc(cx+hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.22,0,Math.PI*2); ctx2d.fill()
-          ctx2d.fillStyle='#222'
-          ctx2d.beginPath(); ctx2d.arc(cx-hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.12,0,Math.PI*2); ctx2d.fill()
-          ctx2d.beginPath(); ctx2d.arc(cx+hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.12,0,Math.PI*2); ctx2d.fill()
-
-          // name label
-          ctx2d.fillStyle='rgba(0,0,0,0.5)'
-          ctx2d.font=`bold ${Math.round(14*scale+10)}px sans-serif`
-          ctx2d.textAlign='center'
-          ctx2d.fillText(ch.name,cx,baseY-4)
+          ctx2d.save()
+          ctx2d.globalAlpha=0.2
+          ctx2d.fillStyle='#000'
+          ctx2d.beginPath(); ctx2d.ellipse(cx,H-6,charW*0.38,10,0,0,Math.PI*2); ctx2d.fill()
+          ctx2d.restore()
+          // flip if facing left
+          if(pl.facing==='left'){
+            ctx2d.save(); ctx2d.translate(cx*2,0); ctx2d.scale(-1,1)
+            ctx2d.drawImage(img,W-x-charW,y,charW,charH)
+            ctx2d.restore()
+          } else {
+            ctx2d.drawImage(img,x,y,charW,charH)
+          }
         }
 
         // ── subtitle bar ─────────────────────────────────────────
         const dlgLine=sc.dialogue[Math.min(Math.floor(f/(frames/Math.max(sc.dialogue.length,1))),sc.dialogue.length-1)]
         if(dlgLine){
           const ch=charMap[dlgLine.characterId]
-          ctx2d.fillStyle='rgba(0,0,0,0.72)'
-          ctx2d.fillRect(0,H-84,W,84)
-          // speaker name
-          ctx2d.fillStyle='#818cf8'
-          ctx2d.font='bold 22px sans-serif'
-          ctx2d.textAlign='left'
-          ctx2d.fillText(`${ch?.name??''}:`,32,H-52)
-          const nameW=ctx2d.measureText(`${ch?.name??''}: `).width+32
-          // dialogue text (word-wrap at ~90 chars)
-          ctx2d.fillStyle='#fff'
-          ctx2d.font='22px sans-serif'
-          const maxW=W-nameW-32
+          // gradient bar
+          const grad=ctx2d.createLinearGradient(0,H-88,0,H)
+          grad.addColorStop(0,'rgba(0,0,0,0)'); grad.addColorStop(0.2,'rgba(0,0,0,0.82)')
+          ctx2d.fillStyle=grad; ctx2d.fillRect(0,H-88,W,88)
+          ctx2d.fillStyle='#818cf8'; ctx2d.font='bold 24px sans-serif'; ctx2d.textAlign='left'
+          ctx2d.fillText(`${ch?.name??''}:`,32,H-48)
+          const nw=ctx2d.measureText(`${ch?.name??''}: `).width+32
+          ctx2d.fillStyle='#fff'; ctx2d.font='23px sans-serif'
           let txt=dlgLine.text
-          if(ctx2d.measureText(txt).width>maxW){
-            // simple truncate with ellipsis
-            while(ctx2d.measureText(txt+'…').width>maxW&&txt.length>0)txt=txt.slice(0,-1)
-            txt+='…'
-          }
-          ctx2d.fillText(txt,nameW,H-52)
-          // full text on second line
-          ctx2d.fillStyle='rgba(255,255,255,0.6)'
-          ctx2d.font='18px sans-serif'
-          ctx2d.fillText(dlgLine.text.slice(0,80),32,H-22)
+          while(ctx2d.measureText(txt).width>W-nw-40&&txt.length>2)txt=txt.slice(0,-1)
+          ctx2d.fillText(txt.length<dlgLine.text.length?txt+'…':txt,nw,H-48)
+          ctx2d.fillStyle='rgba(255,255,255,0.55)'; ctx2d.font='19px sans-serif'
+          ctx2d.fillText(dlgLine.text.slice(0,90),32,H-18)
         }
+
+        // ── scene number watermark ───────────────────────────────
+        ctx2d.fillStyle='rgba(255,255,255,0.18)'
+        ctx2d.font='15px sans-serif'; ctx2d.textAlign='left'
+        ctx2d.fillText(`${sc.sceneNumber}/${scenes.length} · ${sc.title}`,20,28)
 
         await new Promise(r=>setTimeout(r,1000/FPS))
       }
@@ -376,27 +376,87 @@ export function FilmPlayer({film,onClose}:Props){
   const XPOS: Record<string,string>={'far-left':'8%','left':'23%','center':'50%','right':'77%','far-right':'92%'}
   const HPCT: Record<string,string>={small:'38%',medium:'56%',large:'72%'}
 
-  function SceneView({sc,style}:{sc:GenScene,style?:React.CSSProperties}){
+  function SceneView({sc,style,isRecordingTarget}:{sc:GenScene,style?:React.CSSProperties,isRecordingTarget?:boolean}){
+    // Camera movement per mood
+    const cameraAnim: Record<string,string> = {
+      peaceful:'cam-gentle', adventure:'cam-drift', mystery:'cam-creep',
+      tense:'cam-tense', wonder:'cam-float', triumphant:'cam-zoom',
+    }
+    const cam = cameraAnim[sc.musicMood] ?? 'cam-drift'
+
+    // Depth order — small = furthest back, large = closest
+    const depthRank: Record<string,number> = {small:0,medium:1,large:2}
+    const sortedPlacements = [...sc.placements].sort((a,b)=>depthRank[a.size]-depthRank[b.size])
+
+    // Depth properties per size
+    const depthH:    Record<string,string>  = {small:'32%',medium:'52%',large:'68%'}
+    const depthY:    Record<string,string>  = {small:'8%', medium:'0%', large:'-2%'}
+    const depthBlur: Record<string,string>  = {small:'blur(1.2px)',medium:'none',large:'none'}
+    const depthSat:  Record<string,number>  = {small:0.75,medium:0.92,large:1.0}
+    const depthShad: Record<string,string>  = {
+      small:  '0 8px 16px rgba(0,0,0,0.25)',
+      medium: '0 16px 32px rgba(0,0,0,0.35)',
+      large:  '0 24px 48px rgba(0,0,0,0.5)',
+    }
+
     return(
-      <div className="absolute inset-0 overflow-hidden" style={style} data-scene-id={sc.sceneNumber}>
-        <BackgroundSvg theme={sc.background} width="100%" height="100%"/>
+      <div className="absolute inset-0 overflow-hidden" style={style}
+        data-scene-id={sc.sceneNumber} {...(isRecordingTarget?{'data-recording-scene':'true'}:{})}>
+
+        {/* Background — Ken Burns slow zoom */}
+        <div className={`absolute inset-0 animate-${cam}`}
+          style={{animation:`${cam} ${sc.duration}ms ease-out forwards`, transformOrigin:'55% 45%'}}>
+          <BackgroundSvg theme={sc.background} width="100%" height="115%"/>
+        </div>
+
+        {/* Ground perspective gradient — makes floor recede */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{background:'linear-gradient(to top, rgba(0,0,0,0.28) 0%, transparent 35%)'}}/>
+
+        {/* Characters — depth-sorted, back to front */}
         <div className="absolute inset-0">
-          {sc.placements.map(pl=>{
+          {sortedPlacements.map(pl=>{
             const char=charMap[pl.characterId]; if(!char)return null
             const isTalking=talkingId===char.id&&playing
+            const h = depthH[pl.size]??'52%'
+            const yOff = depthY[pl.size]??'0%'
             return(
               <div key={char.id}
                 className={`absolute bottom-0 flex flex-col items-center ${isTalking?'animate-talking':'animate-idle'}`}
-                style={{left:XPOS[pl.position]??'50%',transform:'translateX(-50%)',height:HPCT[pl.size]??'56%'}}>
+                style={{
+                  left: XPOS[pl.position]??'50%',
+                  transform: `translateX(-50%) translateY(${yOff})`,
+                  height: h,
+                  filter: depthBlur[pl.size]??'none',
+                }}>
+                {/* Depth shadow blob */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
+                  style={{
+                    width:'70%',height:8,
+                    background:'rgba(0,0,0,0.35)',
+                    filter:'blur(6px)',
+                    transform:`translateX(-50%) scaleX(${pl.size==='large'?1.4:pl.size==='small'?0.7:1})`,
+                  }}/>
                 <CharacterSvg template={char.template} primaryColor={char.primaryColor}
                   secondaryColor={char.secondaryColor}
-                  emotion={currentLine?.characterId===char.id ? currentLine.emotion : 'neutral'}
+                  emotion={currentLine?.characterId===char.id?currentLine.emotion:'neutral'}
                   facing={pl.facing} width="auto" height="100%"
-                  className="drop-shadow-2xl flex-1 min-h-0"/>
+                  style={{filter:`drop-shadow(${depthShad[pl.size]??depthShad.medium})`} as React.CSSProperties}
+                  className="flex-1 min-h-0"/>
               </div>
             )
           })}
         </div>
+
+        {/* Cinematic vignette */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{background:'radial-gradient(ellipse at 50% 45%, transparent 48%, rgba(0,0,0,0.62) 100%)'}}/>
+
+        {/* Letterbox bars — 2.35:1 widescreen crop */}
+        <div className="absolute top-0 left-0 right-0 pointer-events-none"
+          style={{height:'6.5%',background:'#000'}}/>
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-none"
+          style={{height:'6.5%',background:'#000'}}/>
       </div>
     )
   }
@@ -441,7 +501,7 @@ export function FilmPlayer({film,onClose}:Props){
       {/* Scene viewport — smooth crossfade */}
       <div className="flex-1 relative overflow-hidden cursor-pointer" onClick={()=>setPlaying(p=>!p)}>
         {/* Current scene */}
-        {scene && <SceneView sc={scene} style={{opacity: nextIdx!==null ? 1-crossFade : 1}}/>}
+        {scene && <SceneView sc={scene} style={{opacity: nextIdx!==null ? 1-crossFade : 1}} isRecordingTarget={true}/>}
         {/* Next scene fades in on top */}
         {nextScene && <SceneView sc={nextScene} style={{opacity:crossFade}}/>}
 
