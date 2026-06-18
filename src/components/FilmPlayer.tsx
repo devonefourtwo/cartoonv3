@@ -241,52 +241,120 @@ export function FilmPlayer({film,onClose}:Props){
     music.current.start(scenes[0].musicMood)
     mr.start()
 
-    // render each scene frame by frame
-    const sceneEls=document.querySelectorAll<HTMLDivElement>('[data-scene-render]')
+    // Background colours per theme
+    const BG: Record<string,string> = {
+      bedroom:'#C4A882',forest:'#2D6A4F',city:'#4A5568',
+      space:'#0A0520',beach:'#87CEEB',castle:'#4A3060',
+    }
+    const XPCT: Record<string,number> = {
+      'far-left':8,'left':23,'center':50,'right':77,'far-right':92
+    }
+    const HPCT: Record<string,number> = {small:38,medium:56,large:72}
+
     let totalMs=0
     for(const sc of scenes)totalMs+=sc.duration
-
     let elapsed=0
+
     for(let si=0;si<scenes.length;si++){
       const sc=scenes[si]
       music.current.setMood(sc.musicMood)
-      const frames=Math.round((sc.duration/1000)*30)
+      const FPS=24
+      const frames=Math.round((sc.duration/1000)*FPS)
+
       for(let f=0;f<frames;f++){
-        // draw background colour fallback + subtitle
-        ctx2d.fillStyle='#111'
+        // ── background ──────────────────────────────────────────
+        const grad=ctx2d.createLinearGradient(0,0,0,H)
+        grad.addColorStop(0,(BG[sc.background]??'#111')+'cc')
+        grad.addColorStop(1,BG[sc.background]??'#111')
+        ctx2d.fillStyle=grad
         ctx2d.fillRect(0,0,W,H)
-        // copy the visible scene div to canvas via html rendering
-        const el=document.querySelector<HTMLDivElement>(`[data-scene-id="${sc.sceneNumber}"]`)
-        if(el){
-          try{
-            const {default:html2canvas}=await import('html2canvas' as any)
-            const c=await html2canvas(el,{width:W,height:H,scale:1,logging:false,useCORS:true})
-            ctx2d.drawImage(c,0,0,W,H)
-          }catch{
-            // fallback: just write title
-            ctx2d.fillStyle='#1a1040'
-            ctx2d.fillRect(0,0,W,H)
-            ctx2d.fillStyle='white'
-            ctx2d.font='bold 48px sans-serif'
-            ctx2d.textAlign='center'
-            ctx2d.fillText(sc.title,W/2,H/2)
-          }
+
+        // scene title watermark top-left
+        ctx2d.fillStyle='rgba(255,255,255,0.25)'
+        ctx2d.font=`18px sans-serif`
+        ctx2d.textAlign='left'
+        ctx2d.fillText(`${sc.sceneNumber}. ${sc.title}`,24,36)
+
+        // ── characters (simple cartoon silhouettes) ─────────────
+        for(const pl of sc.placements){
+          const ch=charMap[pl.characterId]; if(!ch)continue
+          const cx=(XPCT[pl.position]??50)/100*W
+          const charH=(HPCT[pl.size]??56)/100*H
+          const scale=charH/178  // 178 = SVG viewBox height
+          const charW=100*scale
+          const baseY=H
+
+          // shadow
+          ctx2d.fillStyle='rgba(0,0,0,0.18)'
+          ctx2d.beginPath()
+          ctx2d.ellipse(cx,baseY-4,charW*0.45,8,0,0,Math.PI*2)
+          ctx2d.fill()
+
+          // body
+          ctx2d.fillStyle=ch.primaryColor
+          const bw=charW*0.44,bh=charH*0.44
+          ctx2d.beginPath()
+          ctx2d.roundRect(cx-bw/2,baseY-bh-charH*0.18,bw,bh,8)
+          ctx2d.fill()
+
+          // head
+          ctx2d.fillStyle='#FDDCB0'
+          const hr=charH*0.18
+          ctx2d.beginPath()
+          ctx2d.arc(cx,baseY-bh-charH*0.18-hr*0.7,hr,0,Math.PI*2)
+          ctx2d.fill()
+
+          // hair/hat using secondary colour
+          ctx2d.fillStyle=ch.secondaryColor
+          ctx2d.beginPath()
+          ctx2d.arc(cx,baseY-bh-charH*0.18-hr*0.9,hr*0.85,Math.PI,Math.PI*2)
+          ctx2d.fill()
+
+          // eyes
+          ctx2d.fillStyle='#fff'
+          ctx2d.beginPath(); ctx2d.arc(cx-hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.22,0,Math.PI*2); ctx2d.fill()
+          ctx2d.beginPath(); ctx2d.arc(cx+hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.22,0,Math.PI*2); ctx2d.fill()
+          ctx2d.fillStyle='#222'
+          ctx2d.beginPath(); ctx2d.arc(cx-hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.12,0,Math.PI*2); ctx2d.fill()
+          ctx2d.beginPath(); ctx2d.arc(cx+hr*0.33,baseY-bh-charH*0.18-hr*0.75,hr*0.12,0,Math.PI*2); ctx2d.fill()
+
+          // name label
+          ctx2d.fillStyle='rgba(0,0,0,0.5)'
+          ctx2d.font=`bold ${Math.round(14*scale+10)}px sans-serif`
+          ctx2d.textAlign='center'
+          ctx2d.fillText(ch.name,cx,baseY-4)
         }
-        // draw subtitle
-        const dlgLine=sc.dialogue[0]
+
+        // ── subtitle bar ─────────────────────────────────────────
+        const dlgLine=sc.dialogue[Math.min(Math.floor(f/(frames/Math.max(sc.dialogue.length,1))),sc.dialogue.length-1)]
         if(dlgLine){
           const ch=charMap[dlgLine.characterId]
-          ctx2d.fillStyle='rgba(0,0,0,0.7)'
-          ctx2d.fillRect(0,H-90,W,90)
-          ctx2d.fillStyle='#fff'
-          ctx2d.font='bold 28px sans-serif'
+          ctx2d.fillStyle='rgba(0,0,0,0.72)'
+          ctx2d.fillRect(0,H-84,W,84)
+          // speaker name
+          ctx2d.fillStyle='#818cf8'
+          ctx2d.font='bold 22px sans-serif'
           ctx2d.textAlign='left'
-          ctx2d.fillText(`${ch?.name??''}:`,40,H-52)
-          ctx2d.font='26px sans-serif'
-          ctx2d.fillText(dlgLine.text,40,H-20)
+          ctx2d.fillText(`${ch?.name??''}:`,32,H-52)
+          const nameW=ctx2d.measureText(`${ch?.name??''}: `).width+32
+          // dialogue text (word-wrap at ~90 chars)
+          ctx2d.fillStyle='#fff'
+          ctx2d.font='22px sans-serif'
+          const maxW=W-nameW-32
+          let txt=dlgLine.text
+          if(ctx2d.measureText(txt).width>maxW){
+            // simple truncate with ellipsis
+            while(ctx2d.measureText(txt+'…').width>maxW&&txt.length>0)txt=txt.slice(0,-1)
+            txt+='…'
+          }
+          ctx2d.fillText(txt,nameW,H-52)
+          // full text on second line
+          ctx2d.fillStyle='rgba(255,255,255,0.6)'
+          ctx2d.font='18px sans-serif'
+          ctx2d.fillText(dlgLine.text.slice(0,80),32,H-22)
         }
-        // frame delay
-        await new Promise(r=>setTimeout(r,1000/30))
+
+        await new Promise(r=>setTimeout(r,1000/FPS))
       }
       elapsed+=sc.duration
       setRecPct(Math.round((elapsed/totalMs)*100))
